@@ -76,7 +76,7 @@ class Operador(NamedTuple):
     indice_clase: int
     asignacion: Asignacion
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, slots=True)
 class Estado:
     """Asignación parcial o completa. asignaciones[i] corresponde a clases[i]."""
     asignaciones: Tuple[Optional[Asignacion], ...]
@@ -131,7 +131,7 @@ class Nodo:
         ops.reverse()
         return ops
     
-@dataclass
+@dataclass(frozen=True, slots=True)
 class Resultado:
     """Lo que devuelve cualquier algoritmo de búsqueda (lo usa la GUI/estadísticas)."""
     algoritmo: str
