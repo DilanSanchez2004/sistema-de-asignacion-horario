@@ -21,7 +21,7 @@ from __future__ import annotations
 import heapq
 import time
 from collections import deque
-from typing import Callable, Dict, Optional
+from typing import Callable, Dict, Optional, Tuple
 
 from modelo import Nodo, Resultado
 from problema import Problema
@@ -110,9 +110,76 @@ def busqueda_costo_uniforme(problema: Problema,
     return _resultado(nombre, None, expandidos, creados, t0, "sin_solucion")
 
 
+def busqueda_profundidad_interativa(problema: Problema,
+                                 limite_nodos: Optional[int] = LIMITE_NODOS_DEFECTO,
+                                 limite_segundos: Optional[float] = LIMITE_SEGUNDOS_DEFECTO) -> Resultado:
+    """Búsqueda en profundidad iterativa (IDDFS). Frontera: pila LIFO.
+
+    Completa; óptima solo si todos los pasos cuestan lo mismo (aquí las
+    penalizaciones blandas rompen eso, así que NO garantiza el mínimo g).
+    Complejidad temporal O(b^d), espacial O(b*d)."""
+    nombre = "Profundidad iterativa"
+    t0 = time.perf_counter()
+    profundidad_max = 0
+    creados, expandidos = 0, 0
+    motivo_limite: Optional[str] = None
+
+    def limite_alcanzado() -> bool:
+        nonlocal motivo_limite
+        if limite_nodos is not None and expandidos >= limite_nodos:
+            motivo_limite = "limite_nodos"
+            return True
+        if limite_segundos is not None and time.perf_counter() - t0 >= limite_segundos:
+            motivo_limite = "limite_tiempo"
+            return True
+        return False
+
+    def dfs_limitada(nodo: Nodo, limite: int) -> Tuple[Optional[Nodo], bool]:
+        nonlocal creados, expandidos
+        if limite_alcanzado():
+            return None, False
+        expandidos += 1
+        if problema.es_meta(nodo.estado):
+            return nodo, False
+
+        sucesores = problema.sucesores(nodo.estado)
+        if sucesores and limite_alcanzado():
+            return None, False
+        if nodo.profundidad >= limite:
+            return None, bool(sucesores)
+
+        corte = False
+        for s in sucesores:
+            if limite_alcanzado():
+                return None, corte
+            hijo = Nodo(s.estado, nodo, s.operador, nodo.costo + s.costo)
+            creados += 1
+            resultado, hubo_corte = dfs_limitada(hijo, limite)
+            if resultado is not None:
+                return resultado, False
+            if motivo_limite is not None:
+                return None, corte or hubo_corte
+            corte = corte or hubo_corte
+        return None, corte
+
+    while True:
+        raiz = Nodo(problema.estado_inicial())
+        creados += 1
+        resultado, hubo_corte = dfs_limitada(raiz, profundidad_max)
+        if resultado is not None:
+            return _resultado(nombre, resultado, expandidos, creados, t0, "")
+        if motivo_limite is not None:
+            return _resultado(nombre, None, expandidos, creados, t0, motivo_limite)
+        if not hubo_corte or profundidad_max >= len(problema.clases):
+            return _resultado(nombre, None, expandidos, creados, t0, "sin_solucion")
+        profundidad_max += 1
+
+
+
 # Registro para la GUI (esto lo hace la persona C): nombre mostrado en el combobox -> función.
 # Para la persona B: agregue aquí DFS, profundización iterativa y A*.
 ALGORITMOS: Dict[str, Callable[..., Resultado]] = {
     "Amplitud (BFS)": busqueda_amplitud,
     "Costo uniforme": busqueda_costo_uniforme,
+    "Profundidad iterativa": busqueda_profundidad_interativa,
 }

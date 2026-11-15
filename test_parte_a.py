@@ -3,10 +3,15 @@ Ejecutar: python3 test_parte_a.py
 """
 import itertools
 import unittest
+from unittest import mock
 
 from modelo import Clase, Estado, Franja, Profesor, Salon
 from problema import Problema
-from busquedas import busqueda_amplitud, busqueda_costo_uniforme
+from busquedas import (
+    busqueda_amplitud,
+    busqueda_costo_uniforme,
+    busqueda_profundidad_interativa,
+)
 
 
 def franjas(n=3):
@@ -60,7 +65,7 @@ class TestNucleo(unittest.TestCase):
 class TestBusquedas(unittest.TestCase):
     def test_bfs_y_ucs_encuentran_horario_valido(self):
         p = instancia()
-        for alg in (busqueda_amplitud, busqueda_costo_uniforme):
+        for alg in (busqueda_amplitud, busqueda_costo_uniforme, busqueda_profundidad_interativa):
             r = alg(p)
             self.assertTrue(r.encontrado, r.algoritmo)
             self.assertEqual(p.restricciones.verificar_completo(r.estado), [])
@@ -80,10 +85,39 @@ class TestBusquedas(unittest.TestCase):
         pA = Profesor("PA", "A")
         p = Problema([Clase("a", "X", pA, "G1"), Clase("b", "Y", pA, "G2")],
                      ["Lunes"], [Franja("F0", "07:00", "09:00", 0)], [Salon("S1"), Salon("S2")])
-        for alg in (busqueda_amplitud, busqueda_costo_uniforme):
+        for alg in (busqueda_amplitud, busqueda_costo_uniforme, busqueda_profundidad_interativa):
             r = alg(p)
             self.assertFalse(r.encontrado)
             self.assertEqual(r.motivo, "sin_solucion")
+
+    def test_iddfs_respeta_limite_nodos_dentro_de_una_iteracion(self):
+        pA = Profesor("PA", "A")
+        p = Problema([Clase("a", "X", pA, "G1"), Clase("b", "Y", pA, "G2")],
+                     ["Lunes"], [Franja("F0", "07:00", "09:00", 0)], [Salon("S1"), Salon("S2")])
+        r = busqueda_profundidad_interativa(p, limite_nodos=3)
+        self.assertFalse(r.encontrado)
+        self.assertEqual(r.motivo, "limite_nodos")
+        self.assertEqual(r.nodos_expandidos, 3)
+
+    def test_iddfs_detecta_agotamiento_al_llegar_al_limite_de_nodos(self):
+        pA = Profesor("PA", "A")
+        p = Problema([Clase("a", "X", pA, "G1"), Clase("b", "Y", pA, "G2")],
+                     ["Lunes"], [Franja("F0", "07:00", "09:00", 0)], [Salon("S1"), Salon("S2")])
+        sin_limite = busqueda_profundidad_interativa(p, limite_nodos=None, limite_segundos=None)
+        r = busqueda_profundidad_interativa(
+            p, limite_nodos=sin_limite.nodos_expandidos, limite_segundos=None
+        )
+        self.assertFalse(r.encontrado)
+        self.assertEqual(r.motivo, "sin_solucion")
+        self.assertEqual(r.nodos_expandidos, sin_limite.nodos_expandidos)
+
+    def test_iddfs_respeta_limite_tiempo_durante_una_iteracion(self):
+        p = instancia()
+        with mock.patch("busquedas.time.perf_counter", side_effect=[0, 0, 0, 1, 1]):
+            r = busqueda_profundidad_interativa(p, limite_nodos=None, limite_segundos=0.5)
+        self.assertFalse(r.encontrado)
+        self.assertEqual(r.motivo, "limite_tiempo")
+        self.assertEqual(r.nodos_expandidos, 1)
 
     def test_limite_de_nodos(self):
         r = busqueda_amplitud(instancia(), limite_nodos=3)
