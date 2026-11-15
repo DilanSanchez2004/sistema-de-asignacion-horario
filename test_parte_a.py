@@ -8,10 +8,14 @@ from unittest import mock
 from modelo import Clase, Estado, Franja, Profesor, Salon
 from problema import Problema
 from busquedas import (
+    ALGORITMOS,
     busqueda_amplitud,
+    busqueda_a_estrella_h1,
+    busqueda_a_estrella_h2,
     busqueda_costo_uniforme,
     busqueda_profundidad_interativa,
 )
+from heuristicas import h1, h2
 
 
 def franjas(n=3):
@@ -155,6 +159,43 @@ class TestBusquedas(unittest.TestCase):
         for alg in (busqueda_amplitud, busqueda_costo_uniforme):
             r = alg(p)
             self.assertAlmostEqual(r.costo, p.costo_total(r.estado))
+
+    def test_heuristicas_cuentan_clases_pendientes(self):
+        p = instancia()
+        raiz = p.estado_inicial()
+        parcial = p.sucesores(raiz)[0].estado
+        self.assertEqual(h1(p, raiz), 4.0)
+        self.assertEqual(h1(p, parcial), 3.0)
+        self.assertEqual(h2(p, raiz), 4.0)
+
+    def test_a_estrella_h1_y_h2_encuentran_solucion_optima(self):
+        p = instancia(no_disp={("Lunes", "F0"), ("Lunes", "F1")}, max_consec=1)
+        costo_optimo = busqueda_costo_uniforme(p).costo
+        for algoritmo in (busqueda_a_estrella_h1, busqueda_a_estrella_h2):
+            r = algoritmo(p)
+            self.assertTrue(r.encontrado, r.algoritmo)
+            self.assertEqual(r.costo, costo_optimo)
+            self.assertEqual(p.restricciones.verificar_completo(r.estado), [])
+
+    def test_a_estrella_h2_poda_y_cuenta_hijos_sin_valores_legales(self):
+        pA = Profesor("PA", "A")
+        p = Problema([Clase("a", "X", pA, "G1"), Clase("b", "Y", pA, "G2")],
+                     ["Lunes"], [Franja("F0", "07:00", "09:00", 0)], [Salon("S1"), Salon("S2")])
+        primer_hijo = p.sucesores(p.estado_inicial())[0].estado
+        self.assertEqual(h2(p, p.estado_inicial()), 2.0)
+        self.assertEqual(h2(p, primer_hijo), float("inf"))
+        r = busqueda_a_estrella_h2(p)
+        self.assertFalse(r.encontrado)
+        self.assertEqual(r.motivo, "sin_solucion")
+        self.assertEqual(r.nodos_creados, 3)
+        self.assertEqual(r.nodos_expandidos, 1)
+
+    def test_a_estrella_esta_registrada_con_firma_de_la_interfaz(self):
+        self.assertIn("A* (h1)", ALGORITMOS)
+        self.assertIn("A* (h2)", ALGORITMOS)
+        r = ALGORITMOS["A* (h1)"](instancia(), 1, None)
+        self.assertEqual(r.motivo, "limite_nodos")
+        self.assertEqual(r.nodos_expandidos, 1)
 
 
 if __name__ == "__main__":

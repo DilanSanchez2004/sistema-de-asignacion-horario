@@ -178,10 +178,11 @@ class App:
             ttk.Label(self.marco_horario, text=f"Sin solución ({r.motivo})").pack(pady=10)
             return
 
-        # [CLAVE 13] Diccionario (día, id_franja) -> (clase, asignación). Sirve para
-        # preguntar "¿qué hay en esta celda?" en una sola consulta en vez de recorrer
-        # todas las clases por cada celda. Las celdas que no estén aquí quedan libres.
-        ocupadas = {(a.dia, a.franja.id): (c, a) for c, a in self._problema.horario(r.estado)}
+        # [CLAVE 13] Diccionario (día, id_franja) -> lista de (clase, asignación).
+        # Una celda puede contener varias clases si ocupan salones distintos.
+        ocupadas = {}
+        for c, a in self._problema.horario(r.estado):
+            ocupadas.setdefault((a.dia, a.franja.id), []).append((c, a))
 
         # Fila 0 = encabezados de días (la columna 0 queda vacía para las horas)
         ttk.Label(self.marco_horario, text="").grid(row=0, column=0)
@@ -191,14 +192,18 @@ class App:
         for i, franja in enumerate(self._problema.franjas, start=1):
             ttk.Label(self.marco_horario, text=str(franja)).grid(row=i, column=0, padx=4)
             for j, dia in enumerate(DIAS, start=1):
-                if (dia, franja.id) in ocupadas:
-                    c, a = ocupadas[(dia, franja.id)]
-                    # Materia, profesor y salón (lo que pide el enunciado), azul
-                    texto, color = f"{c.nombre}\n{c.profesor.nombre}\n{a.salon.id}", COLOR_OCUPADA
+                clases = ocupadas.get((dia, franja.id), [])
+                if clases:
+                    texto = "\n".join(
+                        f"{c.nombre}\n{c.profesor.nombre}\n{a.salon.id}"
+                        for c, a in clases
+                    )
+                    color = COLOR_OCUPADA
                 else:
-                    texto, color = "", COLOR_LIBRE         # celda libre, en gris
+                    texto, color = "", COLOR_LIBRE
                 # tk.Label (no ttk) porque ttk.Label no permite cambiar el fondo con bg=
-                tk.Label(self.marco_horario, text=texto, bg=color, width=18, height=4,
+                tk.Label(self.marco_horario, text=texto, bg=color, width=18,
+                         height=max(4, 3 * len(clases)),
                          relief="groove").grid(row=i, column=j, padx=1, pady=1, sticky="nsew")
 
 

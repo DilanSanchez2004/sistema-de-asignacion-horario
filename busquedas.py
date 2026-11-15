@@ -2,8 +2,8 @@
 busquedas.py
 Algoritmos de búsqueda sobre un `Problema`. Todos devuelven un `Resultado`.
 
-En este archivo implementamos: busqueda_amplitud (BFS) y busqueda_costo_uniforme (UCS) 
-Quedaria faltand profundidad, profundización iterativa y A*  (agregar abajo y registrarlos en ALGORITMOS)
+En este archivo implementamos búsqueda en amplitud (BFS), costo uniforme
+(UCS), profundidad iterativa (IDDFS) y A*.
 
 Cosas de la clase que se respetan:
   - La prueba de meta se hace al EXPANDIR (sacar) un nodo, no al generarlo.
@@ -19,15 +19,18 @@ evitan que la interfaz se congele; si se alcanzan, encontrado=False y el
 from __future__ import annotations
 
 import heapq
+import math
 import time
 from collections import deque
 from typing import Callable, Dict, Optional, Tuple
 
-from modelo import Nodo, Resultado
+from heuristicas import h1, h2
+from modelo import Estado, Nodo, Resultado
 from problema import Problema
 
 LIMITE_NODOS_DEFECTO = 200_000
 LIMITE_SEGUNDOS_DEFECTO = 30.0
+Heuristica = Callable[[Problema, Estado], float]
 
 
 def _resultado(nombre: str, nodo: Optional[Nodo], expandidos: int, creados: int,
@@ -175,11 +178,74 @@ def busqueda_profundidad_interativa(problema: Problema,
         profundidad_max += 1
 
 
+def busqueda_a_estrella(problema: Problema, heuristica: Heuristica,
+                        limite_nodos: Optional[int] = LIMITE_NODOS_DEFECTO,
+                        limite_segundos: Optional[float] = LIMITE_SEGUNDOS_DEFECTO,
+                        nombre: str = "A*") -> Resultado:
+    """A* por f=g+h; los hijos con h infinito se cuentan como creados y se podan."""
+    t0 = time.perf_counter()
+    raiz = Nodo(problema.estado_inicial())
+    creados, expandidos = 1, 0
+    h_raiz = heuristica(problema, raiz.estado)
+    if math.isinf(h_raiz):
+        return _resultado(nombre, None, expandidos, creados, t0, "sin_solucion")
+
+    contador = 0
+    frontera = [(raiz.costo + h_raiz, h_raiz, contador, raiz)]
+
+    while frontera:
+        _, _, _, nodo = heapq.heappop(frontera)
+        expandidos += 1
+        if problema.es_meta(nodo.estado):
+            return _resultado(nombre, nodo, expandidos, creados, t0, "")
+        if limite_nodos is not None and expandidos >= limite_nodos:
+            return _resultado(nombre, None, expandidos, creados, t0, "limite_nodos")
+        if limite_segundos is not None and time.perf_counter() - t0 > limite_segundos:
+            return _resultado(nombre, None, expandidos, creados, t0, "limite_tiempo")
+        for sucesor in problema.sucesores(nodo.estado):
+            hijo = Nodo(
+                sucesor.estado,
+                nodo,
+                sucesor.operador,
+                nodo.costo + sucesor.costo,
+            )
+            creados += 1
+            h_hijo = heuristica(problema, hijo.estado)
+            contador += 1
+            if math.isinf(h_hijo):
+                continue
+            heapq.heappush(
+                frontera,
+                (hijo.costo + h_hijo, h_hijo, contador, hijo),
+            )
+
+    return _resultado(nombre, None, expandidos, creados, t0, "sin_solucion")
+
+
+def busqueda_a_estrella_h1(problema: Problema,
+                           limite_nodos: Optional[int] = LIMITE_NODOS_DEFECTO,
+                           limite_segundos: Optional[float] = LIMITE_SEGUNDOS_DEFECTO) -> Resultado:
+    """Envoltorio de A* con h1 para la interfaz gráfica."""
+    return busqueda_a_estrella(
+        problema, h1, limite_nodos, limite_segundos, "A* (h1)"
+    )
+
+
+def busqueda_a_estrella_h2(problema: Problema,
+                           limite_nodos: Optional[int] = LIMITE_NODOS_DEFECTO,
+                           limite_segundos: Optional[float] = LIMITE_SEGUNDOS_DEFECTO) -> Resultado:
+    """Envoltorio de A* con h2 para la interfaz gráfica."""
+    return busqueda_a_estrella(
+        problema, h2, limite_nodos, limite_segundos, "A* (h2)"
+    )
+
+
 
 # Registro para la GUI (esto lo hace la persona C): nombre mostrado en el combobox -> función.
-# Para la persona B: agregue aquí DFS, profundización iterativa y A*.
 ALGORITMOS: Dict[str, Callable[..., Resultado]] = {
     "Amplitud (BFS)": busqueda_amplitud,
     "Costo uniforme": busqueda_costo_uniforme,
     "Profundidad iterativa": busqueda_profundidad_interativa,
+    "A* (h1)": busqueda_a_estrella_h1,
+    "A* (h2)": busqueda_a_estrella_h2,
 }
