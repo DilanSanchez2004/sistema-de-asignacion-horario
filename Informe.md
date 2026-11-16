@@ -422,7 +422,7 @@ Por ejemplo, la línea `P1,Prof_A,Lunes:F1;Lunes:F2;Martes:F1` crea un profesor 
 
 **Prueba con error:** se cargó `cursos_con_error.txt` (incluido junto a este informe), que es igual a `cursos.txt` pero con la línea `c3,Fisica,P2` sin la columna del grupo. Resultado esperado junto al botón: `✖ error: cursos.txt, registro 3: se esperaba id,nombre,id_profesor,grupo`.
 
-> 📸 **[INSERTAR CAPTURA]**: ventana de la interfaz después de cargar `cursos_con_error.txt`. *(Las capturas que ya tengo no incluyen este caso; hay que tomarla.)*
+> ![Cursosn con falla](capturas/07_error.png)
 
 ### 13.4 Decisiones de diseño
 
