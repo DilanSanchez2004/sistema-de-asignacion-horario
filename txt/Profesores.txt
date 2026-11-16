@@ -1,0 +1,4 @@
+# id,nombre,no_disponibles (opcional: dia:id_franja separados por ;)
+P1,Prof_A,Lunes:F1;Lunes:F2;Martes:F1
+P2,Prof_B,Martes:F3
+P3,Prof_C

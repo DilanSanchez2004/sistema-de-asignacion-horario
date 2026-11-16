@@ -1,0 +1,6 @@
+# id,nombre,id_profesor,grupo
+c1,Calculo,P1
+c2,Algebra,P1
+c3,Fisica,P2
+c4,Quimica,P2
+c5,Programacion,P3

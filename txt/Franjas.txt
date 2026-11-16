@@ -1,0 +1,4 @@
+# id,inicio,fin  (en orden: de la más temprana a la más tarde)
+F1,07:00,09:00
+F2,09:00,11:00
+F3,11:00,13:00
