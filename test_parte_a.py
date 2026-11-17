@@ -46,14 +46,12 @@ class TestNucleo(unittest.TestCase):
     def test_no_se_generan_conflictos(self):
         p = instancia()
         e = p.estado_inicial()
-        primero = p.sucesores(e)[0]                # c1 (Prof_A, G1) Lunes 07-09
+        primero = p.sucesores(e)[0]                
         e1 = primero.estado
-        # c2 comparte profesor con c1: no puede ir el mismo día en la misma franja
         a1 = primero.operador.asignacion
         for s in p.sucesores(e1):
             a = s.operador.asignacion
             self.assertFalse(a.dia == a1.dia and a.franja == a1.franja)
-        # pero sí puede ir en la misma franja OTRO día
         self.assertTrue(any(s.operador.asignacion.franja == a1.franja
                             and s.operador.asignacion.dia != a1.dia
                             for s in p.sucesores(e1)))
@@ -62,7 +60,7 @@ class TestNucleo(unittest.TestCase):
         p = instancia()
         e = p.sucesores(p.estado_inicial())[0].estado
         self.assertLess(len(p.valores_legales(e, 1)), len(p.dominios[1]))
-        suc = p.sucesores(e, indice_clase=3)       # elegir otra variable (MRV)
+        suc = p.sucesores(e, indice_clase=3)       
         self.assertTrue(all(s.operador.indice_clase == 3 for s in suc))
 
 
@@ -77,15 +75,13 @@ class TestBusquedas(unittest.TestCase):
             self.assertGreaterEqual(r.nodos_creados, r.nodos_expandidos)
 
     def test_bfs_expande_por_niveles(self):
-        # BFS con 1 clase: expande la raíz y luego hijos hasta el primero (orden del dominio)
         pA = Profesor("PA", "A")
         p = Problema([Clase("c", "X", pA, "G")], ["Lunes", "Martes"], franjas(), [Salon("S1")])
         r = busqueda_amplitud(p)
-        self.assertEqual(r.nodos_expandidos, 2)    # raíz + primer hijo (meta)
-        self.assertEqual(r.nodos_creados, 7)       # raíz + 2 días x 3 franjas
-
+        self.assertEqual(r.nodos_expandidos, 2)    
+        self.assertEqual(r.nodos_creados, 7)       
+        
     def test_sin_solucion(self):
-        # 2 clases del mismo profesor y una sola franja -> imposible
         pA = Profesor("PA", "A")
         p = Problema([Clase("a", "X", pA, "G1"), Clase("b", "Y", pA, "G2")],
                      ["Lunes"], [Franja("F0", "07:00", "09:00", 0)], [Salon("S1"), Salon("S2")])
