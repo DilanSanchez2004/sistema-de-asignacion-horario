@@ -1,14 +1,9 @@
 # Informe — Sistema de asignación de horarios
 
-> * borrador inicial.
-> * En este borrador se habla de el **núcleo del problema** (modelo, restricciones, formulación) y los algoritmos de **búsqueda por amplitud** y **costo uniforme**.
-> Lo que esta como (pendiente)* es lo que falta implementar.
-
----
 
 * Santiago Andrey Morales Valencia - 2380753  
-* 
-* 
+* Dilan Joseph Sanchez Silva - 2380492
+* Valentina Betancourt Caicedo - 202459411
 
 ---
 
@@ -187,7 +182,7 @@ y se agregaron **límites de nodos (200 000) y de tiempo (30 s)** para que la in
 
 ## 7. Algoritmos implementados
 
-Ambos algoritmos siguen las reglas que vimos en clase:
+Los algoritmos siguen las reglas que vimos en clase:
 
 - La **prueba de meta** se hace al **sacar** un nodo de la frontera (al expandirlo), no al crearlo.
 - **Nodos expandidos** = nodos sacados de la frontera, incluido el nodo meta.
@@ -218,13 +213,82 @@ Siempre expande el nodo con **menor costo acumulado $g$**. Usa una **cola de pri
 - **Complejidad:** $O\!\left(b^{\,1 + \lfloor C^*/\varepsilon \rfloor}\right)$, donde $C^*$ es el
   costo de la solución óptima y $\varepsilon = 1$ el costo mínimo de un paso.
 
+### 7.3 Búsqueda por profundidad iterativa (IDS)
+
+IDS ejecuta búsquedas en profundidad limitadas, aumentando el límite de profundidad
+sucesivamente: primero 0, luego 1, 2, etc., hasta encontrar una meta o agotar el árbol.
+Cada iteración usa una pila implícita de llamadas recursivas y vuelve a visitar los nodos
+de niveles anteriores. En esta implementación, el contador de nodos expandidos y los límites
+de tiempo y nodos se mantienen entre iteraciones.
+
+- **Completa** en este problema finito si no se alcanzan los límites de tiempo o nodos:
+  si existe una solución, IDS alcanza su profundidad.
+- **No garantiza el menor costo:** encuentra una solución de profundidad mínima, pero todas
+  las soluciones completas asignan la misma cantidad de clases. Por eso puede devolver un
+  horario con más penalizaciones que UCS o A*.
+- **Complejidad:** tiempo $O(b^d)$ y espacio $O(bd)$, donde $b$ es el factor de ramificación
+  y $d$ la profundidad de la solución. El espacio es menor que el de BFS, a costa de repetir
+  expansiones en las iteraciones sucesivas.
+
+### 7.4 Búsqueda A*
+
+A* mantiene una cola de prioridad y expande el nodo con menor valor:
+
+$$
+f(n) = g(n) + h(n)
+$$
+
+$g(n)$ es el costo acumulado de las asignaciones realizadas y $h(n)$ estima el costo mínimo
+que falta para completar el horario. La implementación ofrece dos variantes, A* (h1) y
+A* (h2), descritas en la sección 8. Los nodos cuya heurística es infinita se descartan:
+representan estados parciales desde los que ya no es posible completar todas las clases.
+
+- **Óptima** con estas heurísticas: se expanden nodos por $f$ y la primera meta extraída de
+  la frontera tiene costo mínimo. Los empates se resuelven por menor $h$ y luego por orden
+  de inserción, lo que hace determinista el resultado.
+- En este problema se asigna siempre la primera clase libre, por lo que cada estado tiene
+  un único camino en el árbol; no se necesita una lista de estados visitados.
+- **Complejidad:** en el peor caso exponencial, como las demás búsquedas del árbol; su
+  rendimiento práctico depende de cuánto logre orientar la heurística.
+
 ---
 
-## 8. Heurísticas *(pendiente)*
+## 8. Heurísticas
 
-> Aqui va la explicacion de la implementacion de A* y las heurísticas
-> (`heuristicas.py`). Se sugiere incluir: qué estima cada heurística, por qué es admisible
-> y cómo se compara con costo uniforme.
+Las heurísticas de `heuristicas.py` estiman el costo que falta para completar un estado.
+Cada clase que aún no tiene asignación necesita al menos un paso, cuyo costo base es
+`problema.costo_base`. Como las penalizaciones blandas nunca son negativas, ignorarlas
+produce una cota inferior del costo restante.
+
+### 8.1 Heurística h1
+
+$$
+h_1(n) = |\text{clases sin asignar en }n| \times \text{costo\_base}
+$$
+
+h1 cuenta un costo base por cada clase pendiente y supone, de manera optimista, que ninguna
+asignación futura tendrá penalizaciones. Por eso nunca sobreestima el costo real que falta:
+es **admisible**. También es consistente, ya que cada paso reduce h1 exactamente en el costo
+base y cuesta al menos esa cantidad. En un estado completo vale 0.
+
+### 8.2 Heurística h2
+
+h2 calcula el mismo valor que h1 cuando cada clase pendiente conserva por lo menos una
+asignación que respeta las restricciones duras. Si encuentra una clase pendiente sin ningún
+valor legal, devuelve infinito. Esa rama no puede conducir a una solución: las asignaciones
+posteriores solo agregan ocupaciones y no pueden volver legal un valor que ya está bloqueado.
+Así A* puede podarla sin perder soluciones. En los estados que sí pueden continuar, h2 conserva
+la cota inferior admisible de h1.
+
+### 8.3 Comparación y uso en A*
+
+En estados viables, las dos heurísticas tienen el mismo valor. h2, además, devuelve infinito
+cuando detecta que alguna clase pendiente no tiene valores legales y permite podar esos
+callejones sin salida. UCS equivale a ordenar por $g$ (heurística cero), mientras que A* ordena por
+$g+h$ y prioriza los estados que combinan bajo costo acumulado con menor costo restante.
+En la instancia de cinco clases mostrada en la sección 14, ambas variantes de A* expandieron
+6 nodos; ese caso no permite observar una ventaja de h2 sobre h1, aunque h2 sí puede podar
+estados inviables, como comprueba la prueba correspondiente.
 
 ---
 
@@ -236,21 +300,27 @@ Las pruebas automáticas están en `test_parte_a.py` y se ejecutan con:
 python -m unittest test_parte_a
 ```
 
-### 9.1 Pruebas del núcleo y de BFS / costo uniforme
+### 9.1 Pruebas del núcleo y de los algoritmos
 
 | Prueba | Qué comprueba |
 |--------|---------------|
 | `test_estado_inicial_y_sucesores_legales` | El estado inicial no es meta y genera $2 \times 3 \times 2 = 12$ hijos, cada uno con costo 1. |
 | `test_no_se_generan_conflictos` | Una clase del mismo profesor no se ubica en la misma franja y día, pero sí en la misma franja otro día. |
 | `test_valores_legales_y_variable_dinamica` | Los valores legales se reducen al ir asignando, y se puede elegir qué clase asignar (útil para otras estrategias). |
-| `test_bfs_y_ucs_encuentran_horario_valido` | Ambos algoritmos encuentran un horario y este pasa la verificación independiente sin errores. |
+| `test_bfs_y_ucs_encuentran_horario_valido` | BFS, UCS e IDS encuentran un horario que pasa la verificación independiente sin errores. |
 | `test_bfs_expande_por_niveles` | Con 1 clase, BFS expande 2 nodos y crea 7 (raíz + 6 hijos), como se espera. |
-| `test_sin_solucion` | Si es imposible (2 clases del mismo profesor y 1 sola franja), ambos responden `sin_solucion`. |
+| `test_sin_solucion` | Si es imposible (2 clases del mismo profesor y 1 sola franja), BFS, UCS e IDS responden `sin_solucion`. |
+| `test_iddfs_respeta_limite_nodos_dentro_de_una_iteracion` y `test_iddfs_respeta_limite_tiempo_durante_una_iteracion` | IDS detiene la búsqueda y reporta correctamente el límite alcanzado. |
+| `test_iddfs_detecta_agotamiento_al_llegar_al_limite_de_nodos` | IDS informa `sin_solucion` si agota el árbol justo al alcanzar el límite, en vez de confundirlo con una búsqueda truncada. |
 | `test_limite_de_nodos` | Al alcanzar el límite de nodos, la búsqueda se detiene e informa `limite_nodos`. |
 | `test_ucs_optimo_blandas_no_disponible` | UCS evita las franjas no disponibles del profesor y logra costo 4 (sin penalización). |
 | `test_ucs_menor_o_igual_que_bfs` | El costo de UCS nunca es mayor que el de BFS. |
 | `test_ucs_es_el_minimo_global_por_fuerza_bruta` | Se prueban **todas** las combinaciones posibles y el mejor costo coincide con el de UCS. |
 | `test_costo_acumulado_igual_a_costo_total` | El costo sumado paso a paso es igual al costo calculado sobre el horario final. |
+| `test_heuristicas_cuentan_clases_pendientes` | h1 y h2 asignan la cota base esperada según la cantidad de clases aún libres. |
+| `test_a_estrella_h1_y_h2_encuentran_solucion_optima` | Ambas variantes de A* encuentran un horario válido con el costo mínimo obtenido por UCS. |
+| `test_a_estrella_h2_poda_y_cuenta_hijos_sin_valores_legales` | h2 devuelve infinito para un callejón sin salida y A* lo poda sin expandirlo. |
+| `test_a_estrella_esta_registrada_con_firma_de_la_interfaz` | Las dos variantes de A* están registradas para su uso desde la interfaz y respetan sus parámetros. |
 
 Resultado: **todas las pruebas pasan.**
 
@@ -329,10 +399,14 @@ esperados (la raíz y sus 6 hijos).
   las preferencias.
 - **Costo uniforme** es la mejor opción de las dos búsquedas no informadas para este problema:
   garantiza el horario con menos penalizaciones. **BFS** solo garantiza un horario válido.
+- **IDS** reduce el espacio de memoria frente a BFS, pero repite expansiones y, como BFS,
+  no minimiza las penalizaciones blandas.
+- **A\*** conserva la optimalidad de UCS y puede reducir las expansiones usando una cota
+  inferior del costo restante; h2 además poda estados sin valores legales para alguna clase.
 - Ambos algoritmos tienen un costo exponencial, lo que motiva el uso de búsquedas informadas.
 
-> *(pendiente)* Conclusiones generales del grupo, comparación con profundidad iterativa y A*,
-> y comentarios sobre la interfaz y el cargador de datos.
+> *(pendiente)* Conclusiones generales del grupo y comentarios sobre la interfaz y el cargador
+> de datos.
 
 ---
 
@@ -343,7 +417,8 @@ esperados (la raíz y sus 6 hijos).
 | `modelo.py` | Datos del problema (`Franja`, `Salon`, `Profesor`, `Clase`), estado (`Estado`, `Asignacion`, `Operador`), árbol (`Nodo`) y `Resultado`. |
 | `restricciones.py` | Restricciones duras y blandas, índice de ocupación y verificación independiente. |
 | `problema.py` | Formulación del problema: estado inicial, sucesores, prueba de meta y costo. |
-| `busquedas.py` | Algoritmos de búsqueda (BFS y costo uniforme en este aporte). |
+| `busquedas.py` | Algoritmos de búsqueda: amplitud (BFS), costo uniforme (UCS), profundidad iterativa (IDS) y A* con h1 o h2. |
+| `heuristicas.py` | Heurísticas h1 y h2 para A*: estimación del costo base pendiente y detección de estados sin valores legales. |
 | `test_parte_a.py` | Pruebas automáticas. |
 
 ## 12. Filas de la tabla de archivos
@@ -352,7 +427,7 @@ esperados (la raíz y sus 6 hijos).
 |---|---|
 | `cargador.py` | Lee y valida los cuatro archivos de texto (`leer_profesores`, `leer_cursos`, `leer_salones`, `leer_franjas`) y devuelve diccionarios, tuplas o listas de objetos del modelo. `construir_clases` une cursos y profesores para crear las `Clase`. La tabla `LECTORES` asocia cada archivo con su lector para que la interfaz los use sin repetir código. |
 | `interfaz.py` | Interfaz gráfica en Tkinter con cuatro paneles (archivos, configuración, horario, estadísticas). No contiene lógica de búsqueda: solo llama a `ALGORITMOS[nombre](problema)` y a `problema.horario(estado)`. Ejecuta el algoritmo en un hilo aparte para no congelar la ventana. |
-| `heuristicas.py` | *(la completa Dilan)* |
+| `heuristicas.py` | Define h1 y h2, las cotas inferiores del costo restante utilizadas por A*. |
 
 ---
 
@@ -550,7 +625,3 @@ Resultados medidos con el conjunto de ejemplo, 3 días y máx. consecutivas = 3:
 - **IDS explora más nodos que BFS** (66 323 frente a 61 364) porque repite la búsqueda en cada profundidad. Aun así tarda menos (1.322 s frente a 2.197 s); esa diferencia probablemente se debe a que BFS necesita mantener una cola enorme en memoria, pero para confirmarlo habría que medir el uso de memoria.
 - **A\* con h1 y con h2 expande solo 6 nodos** (5 clases a asignar más el nodo inicial) y tarda prácticamente 0 s: en este conjunto ambas heurísticas guían la búsqueda casi directamente a la solución, así que no se aprecia diferencia entre ellas. Esa diferencia solo se vería con un conjunto más grande o más restringido.
 - **Todas encuentran solución**, pero BFS e IDS devuelven una peor en términos de restricciones blandas (ver 14.5).
-
-
-
-> *(pendiente)*  `heuristicas.py` y los demás algoritmos.

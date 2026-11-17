@@ -116,11 +116,7 @@ def busqueda_costo_uniforme(problema: Problema,
 def busqueda_profundidad_interativa(problema: Problema,
                                  limite_nodos: Optional[int] = LIMITE_NODOS_DEFECTO,
                                  limite_segundos: Optional[float] = LIMITE_SEGUNDOS_DEFECTO) -> Resultado:
-    """Búsqueda en profundidad iterativa (IDDFS). Frontera: pila LIFO.
 
-    Completa; óptima solo si todos los pasos cuestan lo mismo (aquí las
-    penalizaciones blandas rompen eso, así que NO garantiza el mínimo g).
-    Complejidad temporal O(b^d), espacial O(b*d)."""
     nombre = "Profundidad iterativa"
     t0 = time.perf_counter()
     profundidad_max = 0
@@ -182,7 +178,7 @@ def busqueda_a_estrella(problema: Problema, heuristica: Heuristica,
                         limite_nodos: Optional[int] = LIMITE_NODOS_DEFECTO,
                         limite_segundos: Optional[float] = LIMITE_SEGUNDOS_DEFECTO,
                         nombre: str = "A*") -> Resultado:
-    """A* por f=g+h; los hijos con h infinito se cuentan como creados y se podan."""
+    
     t0 = time.perf_counter()
     raiz = Nodo(problema.estado_inicial())
     creados, expandidos = 1, 0
@@ -225,7 +221,7 @@ def busqueda_a_estrella(problema: Problema, heuristica: Heuristica,
 def busqueda_a_estrella_h1(problema: Problema,
                            limite_nodos: Optional[int] = LIMITE_NODOS_DEFECTO,
                            limite_segundos: Optional[float] = LIMITE_SEGUNDOS_DEFECTO) -> Resultado:
-    """Envoltorio de A* con h1 para la interfaz gráfica."""
+    
     return busqueda_a_estrella(
         problema, h1, limite_nodos, limite_segundos, "A* (h1)"
     )
@@ -234,7 +230,7 @@ def busqueda_a_estrella_h1(problema: Problema,
 def busqueda_a_estrella_h2(problema: Problema,
                            limite_nodos: Optional[int] = LIMITE_NODOS_DEFECTO,
                            limite_segundos: Optional[float] = LIMITE_SEGUNDOS_DEFECTO) -> Resultado:
-    """Envoltorio de A* con h2 para la interfaz gráfica."""
+
     return busqueda_a_estrella(
         problema, h2, limite_nodos, limite_segundos, "A* (h2)"
     )
