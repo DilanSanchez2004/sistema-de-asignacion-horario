@@ -1,23 +1,3 @@
-"""
-restricciones.py  
-Restricciones DURAS (no pueden violarse) y BLANDAS (se penalizan en el costo).
-
-Restricciones duras
-  1. Un salón no puede tener dos clases en la misma franja.
-  2. Un profesor no puede dictar dos clases en la misma franja.
-  3. Un grupo no puede tener dos clases en la misma franja.
-  4. Cada clase se asigna exactamente una vez (lo garantiza la estructura del
-     Estado: una posición por clase; se revisa en verificar_completo).
-
-Restricciones blandas (suman penalización al costo del paso)
-  a. Profesor en una franja que marcó como no disponible.
-  b. Grupo con más de N clases consecutivas el mismo día.
-
-"Misma franja" significa mismo día Y misma franja horaria.
-
-Para que cada expansión sea barata, antes de generar sucesores se construye UNA
-vez una `Ocupacion` (índices en conjuntos) y luego cada candidato se prueba en O(1).
-"""
 from __future__ import annotations
 
 from typing import Dict, List, Optional, Set, Tuple
@@ -26,20 +6,16 @@ from modelo import Asignacion, Clase, Estado
 
 
 class Ocupacion:
-    """Índices de lo que ya está ocupado en un estado parcial."""
     __slots__ = ("salones", "profesores", "grupos", "ordenes")
 
     def __init__(self) -> None:
-        self.salones: Set[Tuple[str, str, str]] = set()     # (dia, id_franja, id_salon)
-        self.profesores: Set[Tuple[str, str, str]] = set()  # (dia, id_franja, id_profesor)
-        self.grupos: Set[Tuple[str, str, str]] = set()      # (dia, id_franja, grupo)
-        # (grupo, dia) son las órdenes de franja ocupadas, para contar consecutivas
+        self.salones: Set[Tuple[str, str, str]] = set()     
+        self.profesores: Set[Tuple[str, str, str]] = set()  
+        self.grupos: Set[Tuple[str, str, str]] = set()      
         self.ordenes: Dict[Tuple[str, str], Set[int]] = {}
 
 
 def exceso_consecutivas(ordenes: Set[int], n: int) -> int:
-    """Cuántas clases sobrepasan el límite n dentro de cada racha de franjas
-    consecutivas. Ej.: órdenes {0,1,2,3}, n=2 -> racha de 4 -> exceso 2."""
     exceso = 0
     racha = 0
     previo: Optional[int] = None
@@ -61,7 +37,6 @@ class Restricciones:
         self.peso_consecutivas = peso_consecutivas
         self.usar_blandas = usar_blandas
 
-    # Índice de ocupación
     def construir_ocupacion(self, estado: Estado) -> Ocupacion:
         oc = Ocupacion()
         for i, a in enumerate(estado.asignaciones):
@@ -74,9 +49,7 @@ class Restricciones:
             oc.ordenes.setdefault((c.grupo, a.dia), set()).add(a.franja.orden)
         return oc
 
-    # Duras
     def viola_duras(self, oc: Ocupacion, indice: int, a: Asignacion) -> bool:
-        """True si asignar clases[indice] a `a` rompe alguna restricción dura."""
         c = self.clases[indice]
         d, f = a.dia, a.franja.id
         return ((d, f, a.salon.id) in oc.salones
@@ -84,12 +57,9 @@ class Restricciones:
                 or (d, f, c.grupo) in oc.grupos)
 
     def cumple_duras(self, estado: Estado, indice: int, a: Asignacion) -> bool:
-        """Versión de conveniencia (construye la ocupación en cada llamada)."""
         return not self.viola_duras(self.construir_ocupacion(estado), indice, a)
 
-    # Blandas
     def penalizacion_paso(self, oc: Ocupacion, indice: int, a: Asignacion) -> float:
-        """Penalización que AÑADE asignar clases[indice] a `a` (delta)."""
         if not self.usar_blandas:
             return 0.0
         c = self.clases[indice]
@@ -104,8 +74,6 @@ class Restricciones:
         return p
 
     def penalizacion_total(self, estado: Estado) -> float:
-        """Penalización de un estado completo, calculada desde cero.
-        Coincide con la suma de las penalizaciones de paso a lo largo del camino."""
         if not self.usar_blandas:
             return 0.0
         total = 0.0
@@ -119,7 +87,6 @@ class Restricciones:
         return total
 
     def detalle_blandas(self, estado: Estado) -> List[str]:
-        """Lista legible de violaciones blandas (para el informe/GUI)."""
         det: List[str] = []
         for i, a in enumerate(estado.asignaciones):
             if a is not None and (a.dia, a.franja.id) in self.clases[i].profesor.no_disponibles:
@@ -134,11 +101,7 @@ class Restricciones:
                                f"{self.max_consecutivas} consecutivas el {dia}")
         return det
 
-    # Verificación independiente ( esto nos sirve para probar los algoritmos)
     def verificar_completo(self, estado: Estado) -> List[str]:
-        """Revisa TODAS las restricciones duras sobre un estado completo.
-        Devuelve la lista de violaciones (vacía = horario válido).
-        No depende de la generación de sucesores, por eso sirve para auditarla."""
         errores: List[str] = []
         n = len(self.clases)
         if len(estado.asignaciones) != n:
